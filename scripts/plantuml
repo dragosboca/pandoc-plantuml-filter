@@ -1,4 +1,0 @@
-#!/bin/bash
-set -ie 
-
-java -jar /opt/plantuml/plantuml.jar $@
