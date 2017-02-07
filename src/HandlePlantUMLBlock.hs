@@ -1,5 +1,5 @@
 import Text.Pandoc.JSON
-import Data.ByteString.Lazy (hGetContents, hPut)
+import Data.ByteString.Lazy (hGetContents, hPut, ByteString)
 import Data.ByteString.Lazy.UTF8 (fromString)
 import Data.Digest.Pure.SHA (sha1, showDigest)
 import System.IO
@@ -7,7 +7,7 @@ import System.IO
 import System.Process
 
 processBlocks :: Maybe Format -> Block -> IO Block
-processBlocks format cb@(CodeBlock (_, classes, _) contents) =
+processBlocks format cb@(CodeBlock (id_, classes, _) contents) =
   if elem "plantuml" classes || elem "{plantuml}" classes -- stupid - only because of atom markdown-preview-enhanced!!
     then plantUMLToImg format contents
     else return cb
@@ -15,10 +15,17 @@ processBlocks _ cb = return cb
 
 plantUMLToImg :: Maybe Format -> String -> IO Block
 plantUMLToImg format content = do
-  path <- renderImage format content
+  (result, path) <- renderImage format content
+  writeImageFile result path
   return $ Para [Image nullAttr [] (path, "")]
+  where
+    writeImageFile :: ByteString -> String -> IO ()
+    writeImageFile r p = do
+      hFile <- openBinaryFile p WriteMode
+      hPut hFile r
+      hClose hFile
 
-renderImage :: Maybe Format -> String -> IO String
+renderImage :: Maybe Format -> String -> IO (ByteString, String)
 renderImage format content = do
   let path = uniqueName content ++ "." ++ imgFormat format
   (Just hIn, Just hOut, _, _) <-
@@ -29,9 +36,9 @@ renderImage format content = do
       }
   hPutStr hIn content
   hClose hIn
-  writeImageFile hOut path
+  res <- hGetContents hOut
   hClose hOut
-  return path
+  return (res, path)
   where
     imgFormat :: Maybe Format -> String
     imgFormat (Just (Format s))
@@ -41,12 +48,11 @@ renderImage format content = do
     imgFormat _ = "png"
     uniqueName :: String -> String
     uniqueName = showDigest . sha1 . fromString
-    writeImageFile :: Handle -> String -> IO ()
-    writeImageFile hOut path = do
-      hFile <- openBinaryFile path WriteMode
-      img <- hGetContents hOut
-      hPut hFile img
-      hClose hFile
 
 main :: IO ()
 main = toJSONFilter processBlocks
+-- Roadmap
+-- DONE:0 Image format by target format (eg: eps for Latex and svg for HTML)
+-- TODO:10 Embeded images
+-- TODO:20 Multiple formats (mermaid, ) - migrate tot pandoc-filter-multi
+-- TODO:0 Read Metadata
