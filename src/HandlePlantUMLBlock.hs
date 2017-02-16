@@ -11,7 +11,7 @@ import System.Process
 imgContent :: Bool -> String -> BS.ByteString -> IO Inline
 imgContent True fmt cnt = return $ RawInline (Format fmt) $ toString cnt
 imgContent False fmt cnt = do
-  path <- writeImg fmt cnt
+  path <- writeImg (imgFormat fmt) cnt
   return $ Image nullAttr [] (path, "")
 
 processBlocks :: Maybe Format -> Block -> IO Block
