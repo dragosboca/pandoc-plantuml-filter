@@ -1,53 +1,58 @@
 import Text.Pandoc.JSON
-import Data.ByteString.Lazy (hGetContents, hPut, ByteString)
-import Data.ByteString.Lazy.UTF8 (fromString)
+import Debug.Trace
+import qualified Data.ByteString.Lazy as BS
+       (hGetContents, hPut, concat, ByteString)
+import Data.ByteString.Lazy.UTF8 (fromString, toString)
 import Data.Digest.Pure.SHA (sha1, showDigest)
 import System.IO
        (hClose, hPutStr, IOMode(..), openBinaryFile, Handle)
 import System.Process
 
+imgContent :: Bool -> String -> BS.ByteString -> IO Inline
+imgContent True fmt cnt = return $ RawInline (Format fmt) $ toString cnt
+imgContent False fmt cnt = do
+  path <- writeImg fmt cnt
+  return $ Image nullAttr [] (path, "")
+
 processBlocks :: Maybe Format -> Block -> IO Block
-processBlocks format cb@(CodeBlock (id_, classes, _) contents) =
-  if elem "plantuml" classes || elem "{plantuml}" classes -- stupid - only because of atom markdown-preview-enhanced!!
-    then plantUMLToImg format contents
-    else return cb
+processBlocks (Just f@(Format format)) cb@(CodeBlock (id_, classes, keyValues) contents)
+  | elem "plantuml" classes = do
+    let fmt = imgFormat format
+    cnt <- renderImage fmt contents
+    img <- imgContent ("inline" `elem` classes) format cnt
+    return $ Para [img]
+  | otherwise = return cb
 processBlocks _ cb = return cb
 
-plantUMLToImg :: Maybe Format -> String -> IO Block
-plantUMLToImg format content = do
-  (result, path) <- renderImage format content
-  writeImageFile result path
-  return $ Para [Image nullAttr [] (path, "")]
-  where
-    writeImageFile :: ByteString -> String -> IO ()
-    writeImageFile r p = do
-      hFile <- openBinaryFile p WriteMode
-      hPut hFile r
-      hClose hFile
+imgFormat :: String -> String
+imgFormat s ------ << FIXME use correct format srings
+  | s `elem` ["pdf", "latex"] = "latex"
+  | s `elem` ["html", "markdown"] = "svg"
+  | otherwise = "png"
 
-renderImage :: Maybe Format -> String -> IO (ByteString, String)
+-- Filename can be random or an attribute
+writeImg :: String -> BS.ByteString -> IO String
+writeImg fmt content = do
+  let path = uniqueName content ++ "." ++ fmt
+  hFile <- openBinaryFile path WriteMode
+  BS.hPut hFile content
+  hClose hFile
+  return path
+  where
+    uniqueName :: BS.ByteString -> String
+    uniqueName = showDigest . sha1
+
+renderImage :: String -> String -> IO BS.ByteString
 renderImage format content = do
-  let path = uniqueName content ++ "." ++ imgFormat format
   (Just hIn, Just hOut, _, _) <-
     createProcess
-      (proc "/bin/sh" ["plantuml", "-pipe", "-t" ++ imgFormat format]) -- shell won't work; I don't know why
+      (proc "/bin/sh" ["plantuml", "-pipe", "-t" ++ format]) -- shell won't work; I don't know why
       { std_in = CreatePipe
       , std_out = CreatePipe
       }
   hPutStr hIn content
   hClose hIn
-  res <- hGetContents hOut
-  hClose hOut
-  return (res, path)
-  where
-    imgFormat :: Maybe Format -> String
-    imgFormat (Just (Format s))
-      | s `elem` ["pdf", "latex"] = "latex"
-      | s `elem` ["html", "markdown"] = "svg"
-      | otherwise = "png"
-    imgFormat _ = "png"
-    uniqueName :: String -> String
-    uniqueName = showDigest . sha1 . fromString
+  BS.hGetContents hOut
 
 main :: IO ()
 main = toJSONFilter processBlocks
