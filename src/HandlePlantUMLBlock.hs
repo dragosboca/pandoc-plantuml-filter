@@ -60,7 +60,7 @@ main :: IO ()
 main = toJSONFilter processBlocks
 -- Roadmap
 -- DONE:0 Image format by target format (eg: eps for Latex and svg for HTML)
--- TODO:0 Use CodeBlock's attributes
--- TODO:10 Embeded images
--- TODO:20 Read Metadata
--- TODO:30 Multiple formats (mermaid, ) - migrate tot pandoc-filter-multi
+-- DONE:10 Use CodeBlock's attributes
+-- DONE:20 Embeded images
+-- TODO:0 Read Metadata
+-- TODO:10 Multiple formats (mermaid, ) - migrate tot pandoc-filter-multi
