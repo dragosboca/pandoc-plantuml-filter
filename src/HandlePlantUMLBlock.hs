@@ -8,18 +8,24 @@ import System.IO
        (hClose, hPutStr, IOMode(..), openBinaryFile, Handle)
 import System.Process
 
-imgContent :: Bool -> String -> BS.ByteString -> IO Inline
-imgContent True fmt cnt = return $ RawInline (Format fmt) $ toString cnt
-imgContent False fmt cnt = do
-  path <- writeImg (imgFormat fmt) cnt
+imgContent :: Bool -> String -> String -> BS.ByteString -> IO Inline
+imgContent True _ fmt cnt = return $ RawInline (Format fmt) $ toString cnt
+imgContent False name fmt cnt = do
+  let path = uniqueName name cnt  ++ "." ++ imgFormat fmt
+  writeImg path cnt
   return $ Image nullAttr [] (path, "")
+  where
+    uniqueName :: String -> BS.ByteString -> String
+    uniqueName name content
+        | name == "" = showDigest $ sha1 content
+        | otherwise = name
 
 processBlocks :: Maybe Format -> Block -> IO Block
 processBlocks (Just f@(Format format)) cb@(CodeBlock (id_, classes, keyValues) contents)
   | elem "plantuml" classes = do
     let fmt = imgFormat format
     cnt <- renderImage fmt contents
-    img <- imgContent ("inline" `elem` classes) format cnt
+    img <- imgContent ("inline" `elem` classes) id_ format cnt
     return $ Para [img]
   | otherwise = return cb
 processBlocks _ cb = return cb
@@ -32,15 +38,11 @@ imgFormat s ------ << FIXME use correct format srings
 
 -- Filename can be random or an attribute
 writeImg :: String -> BS.ByteString -> IO String
-writeImg fmt content = do
-  let path = uniqueName content ++ "." ++ fmt
+writeImg path content = do
   hFile <- openBinaryFile path WriteMode
   BS.hPut hFile content
   hClose hFile
   return path
-  where
-    uniqueName :: BS.ByteString -> String
-    uniqueName = showDigest . sha1
 
 renderImage :: String -> String -> IO BS.ByteString
 renderImage format content = do
