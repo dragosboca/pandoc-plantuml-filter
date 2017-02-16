@@ -11,14 +11,14 @@ import System.Process
 imgContent :: Bool -> String -> String -> BS.ByteString -> IO Inline
 imgContent True _ fmt cnt = return $ RawInline (Format fmt) $ toString cnt
 imgContent False name fmt cnt = do
-  let path = uniqueName name cnt  ++ "." ++ imgFormat fmt
+  let path = uniqueName name cnt ++ "." ++ imgFormat fmt
   writeImg path cnt
   return $ Image nullAttr [] (path, "")
   where
     uniqueName :: String -> BS.ByteString -> String
     uniqueName name content
-        | name == "" = showDigest $ sha1 content
-        | otherwise = name
+      | name == "" = showDigest $ sha1 content
+      | otherwise = name
 
 processBlocks :: Maybe Format -> Block -> IO Block
 processBlocks (Just f@(Format format)) cb@(CodeBlock (id_, classes, keyValues) contents)
