@@ -34,7 +34,6 @@ imgFormat s ------ << FIXME use correct format srings
   | s `elem` ["html", "markdown"] = "svg"
   | otherwise = "png"
 
--- Filename can be random or an attribute
 writeImg :: String -> BS.ByteString -> IO String
 writeImg path content = do
   hFile <- openBinaryFile path WriteMode
