@@ -1,12 +1,10 @@
-import Text.Pandoc.JSON
-import Debug.Trace
-import qualified Data.ByteString.Lazy as BS
-       (hGetContents, hPut, concat, ByteString)
-import Data.ByteString.Lazy.UTF8 (fromString, toString)
-import Data.Digest.Pure.SHA (sha1, showDigest)
-import System.IO
-       (hClose, hPutStr, IOMode(..), openBinaryFile, Handle)
-import System.Process
+import qualified Data.ByteString.Lazy      as BS (ByteString, concat, hGetContents, hPut)
+import           Data.ByteString.Lazy.UTF8 (fromString, toString)
+import           Data.Digest.Pure.SHA      (sha1, showDigest)
+import           Debug.Trace
+import           System.IO                 (Handle, IOMode (..), hClose, hPutStr, openBinaryFile)
+import           System.Process
+import           Text.Pandoc.JSON
 
 imgContent :: Bool -> String -> String -> BS.ByteString -> IO Inline
 imgContent True _ fmt cnt = return $ RawInline (Format fmt) $ toString cnt
